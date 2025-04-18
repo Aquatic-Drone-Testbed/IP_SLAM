@@ -67,7 +67,7 @@ def orient_scans(processed_folder, original_folder, aligned_folder, transformati
             gif_processed_path,
             save_all=True,
             append_images=[img.convert("RGB") for img in aligned_processed[1:]],
-            duration=200,
+            duration=100,
             loop=0,
             transparency=None,
             disposal=2
@@ -78,7 +78,7 @@ def orient_scans(processed_folder, original_folder, aligned_folder, transformati
             gif_original_path,
             save_all=True,
             append_images=[img.convert("RGB") for img in aligned_original[1:]],
-            duration=200,
+            duration=100,
             loop=0,
             transparency=None,
             disposal=2
@@ -89,6 +89,6 @@ def orient_scans(processed_folder, original_folder, aligned_folder, transformati
             gif_unoriented_path,
             save_all=True,
             append_images=unoriented_images[1:],
-            duration=200,
+            duration=100,
             loop=0
         )
