@@ -5,8 +5,10 @@ import re
 from quantum_scan import QuantumScan
 
 # Configurable Parameters
-ANG_VEL_THRESHOLD = 0.04         
-MAX_BAD_SPOKE_RATIO = 0.005       
+# ANG_VEL_THRESHOLD = 0.04         
+# MAX_BAD_SPOKE_RATIO = 0.005    
+ANG_VEL_THRESHOLD = 0.08    
+MAX_BAD_SPOKE_RATIO = 0.005      
 ANG_VEL_AXIS = 'z'    
 
 AXIS_SELECT = {'x': 0, 'y': 1, 'z': 2}

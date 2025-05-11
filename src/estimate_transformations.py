@@ -1,8 +1,9 @@
 import cv2
 import numpy as np
 import os
+import math
 
-def estimate_transformations(input_folder, output_transformations_file, match_output_folder, overlay_output_folder, feature_detector_type="AKAZE", num_matches=55, nfeatures=5000):
+def estimate_transformations(input_folder, output_transformations_file, match_output_folder, overlay_output_folder, angle_log_file, feature_detector_type="AKAZE", num_matches=55, nfeatures=5000):
     os.makedirs(match_output_folder, exist_ok=True)
     os.makedirs(overlay_output_folder, exist_ok=True)
 
@@ -20,6 +21,8 @@ def estimate_transformations(input_folder, output_transformations_file, match_ou
     bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True) if feature_detector_type != "ORB" else cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
     transformations = []
+    curr_angle = 0
+    angle_list = []
 
     for i in range(len(images) - 1):
         img1_path = os.path.join(input_folder, images[i])
@@ -39,7 +42,16 @@ def estimate_transformations(input_folder, output_transformations_file, match_ou
         pts1 = np.float32([kp1[m.queryIdx].pt for m in good_matches])
         pts2 = np.float32([kp2[m.trainIdx].pt for m in good_matches])
 
-        M, mask = cv2.estimateAffine2D(pts1, pts2, method=cv2.RANSAC, ransacReprojThreshold=0.1)
+        # M, mask = cv2.estimateAffine2D(pts1, pts2, method=cv2.RANSAC, ransacReprojThreshold=0.1)
+        M, mask = cv2.estimateAffinePartial2D(pts1, pts2, method=cv2.RANSAC, ransacReprojThreshold=0.1)
+
+        if M is not None:
+            a, b = M[0, 0], M[0, 1]
+            angle_rad = math.atan2(b, a)
+            angle_deg = math.degrees(angle_rad)
+
+        curr_angle += angle_deg
+        angle_list.append(curr_angle)
 
         transformations.append(M)
 
@@ -56,3 +68,7 @@ def estimate_transformations(input_folder, output_transformations_file, match_ou
         cv2.imwrite(overlay_path, overlay)
 
     np.save(output_transformations_file, transformations)
+
+    with open(angle_log_file, "w") as f:
+        for i, angle in enumerate(angle_list):
+            f.write(f"{i:03d} {angle:.4f}\n")
