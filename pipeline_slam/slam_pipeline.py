@@ -3,8 +3,8 @@
 import time
 import traceback
 import sys
+import shutil
 from pathlib import Path
-from datetime import datetime
 
 from add_center_marker import add_center_marker
 from preprocess_scans import preprocess_scans
@@ -21,137 +21,179 @@ from combine_pose_file import combine_pose_file
 VALID_ROOT    = Path("data/valid_frames")
 CART_ROOT     = VALID_ROOT / "cartesian"
 WORK_ROOT     = Path("data/slam_work")
-POLL_INTERVAL = 15  # seconds between polling for new images
+POLL_INTERVAL = 15  # seconds
+STATE_FILE    = WORK_ROOT / "processed_frames.txt"
 # ────────────────────────────────────────────────────────────────────────────────
 
-def ensure_root():
-    """Make sure the top‐level WORK_ROOT exists."""
+def ensure_dirs():
+    # Main workspace
     WORK_ROOT.mkdir(parents=True, exist_ok=True)
+    # Per‐step folders (inputs + outputs)
+    for d in (
+        "01_centered",
+        "02_processed",
+        "04_aligned",
+    ):
+        (WORK_ROOT / d).mkdir(parents=True, exist_ok=True)
 
-def run_slam():
-    # 1) create a unique timestamped folder for this run
-    ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-    run_folder = WORK_ROOT / f"run_{ts}"
-    for step in range(1, 10):
-        (run_folder / f"{step:02d}").mkdir(parents=True, exist_ok=True)
+def load_processed():
+    if not STATE_FILE.exists():
+        return set()
+    return set(STATE_FILE.read_text().splitlines())
 
-    # Step 1: add center marker
-    step1 = run_folder / "01_centered"
-    add_center_marker(str(CART_ROOT), str(step1))
+def save_processed(frames):
+    STATE_FILE.write_text("\n".join(sorted(frames)))
 
-    # Step 2: preprocess scans
-    step2 = run_folder / "02_processed"
-    preprocess_scans(str(step1), str(step2))
+def copy_files(src_paths, dst_folder):
+    for p in src_paths:
+        shutil.copy(p, dst_folder / p.name)
 
-    # Step 3: estimate transformations
-    tf_file     = run_folder / "03_transformations.npy"
-    match_dbg   = run_folder / "03_matches"
-    overlay_dbg = run_folder / "03_overlays"
-    angle_file  = run_folder / "03_angles.txt"
+def incremental_preprocess(new_cartesian):
+    """
+    Run steps 1 & 2 only on the new cartesian frames,
+    appending results into WORK_ROOT/01_centered and /02_processed.
+    """
+    tmp_cart = WORK_ROOT / "tmp_cart"
+    tmp_cent = WORK_ROOT / "tmp_center"
+    tmp_proc = WORK_ROOT / "tmp_proc"
+    for d in (tmp_cart, tmp_cent, tmp_proc):
+        if d.exists():
+            shutil.rmtree(d)
+        d.mkdir()
+
+    # Copy only the new ones into tmp_cart
+    copy_files(new_cartesian, tmp_cart)
+
+    # Step 1: center marker (tmp_cart → tmp_cent), then merge into 01_centered
+    add_center_marker(str(tmp_cart), str(tmp_cent))
+    copy_files(list(tmp_cent.glob("*.jpg")), WORK_ROOT / "01_centered")
+
+    # Step 2: preprocess (tmp_cent → tmp_proc), then merge into 02_processed
+    preprocess_scans(str(tmp_cent), str(tmp_proc))
+    copy_files(list(tmp_proc.glob("*.jpg")), WORK_ROOT / "02_processed")
+
+    # clean up
+    shutil.rmtree(tmp_cart)
+    shutil.rmtree(tmp_cent)
+    shutil.rmtree(tmp_proc)
+
+def run_full_slam():
+    """
+    Run steps 3–9 on the *entire* set of processed & centered frames.
+    (These folders now contain both old + newly appended images.)
+    """
+    step1 = WORK_ROOT / "01_centered"
+    step2 = WORK_ROOT / "02_processed"
+    aligned = WORK_ROOT / "04_aligned"
+
+    # Step 3: estimate transformations
+    tf_file     = WORK_ROOT / "03_transformations.npy"
+    match_dbg   = WORK_ROOT / "03_matches"
+    overlay_dbg = WORK_ROOT / "03_overlays"
+    angle_file  = WORK_ROOT / "03_angles.txt"
     estimate_transformations(
         str(step2),
         str(tf_file),
         str(match_dbg),
         str(overlay_dbg),
         str(angle_file),
-        "AKAZE",    # feature detector
-        100         # num_good_matches
+        "AKAZE",
+        100
     )
 
-    # Step 4: orient scans
-    aligned = run_folder / "04_aligned"
+    # Step 4: orient scans
     orient_scans(
         str(step2),
-        str(step1),                       # use centered scans as "original"
+        str(step1),
         str(aligned),
         str(tf_file),
-        str(run_folder / "04_proc.gif"),
-        str(run_folder / "04_orig.gif"),
-        str(run_folder / "04_unoriented.gif")
+        str(WORK_ROOT / "04_proc.gif"),
+        str(WORK_ROOT / "04_orig.gif"),
+        str(WORK_ROOT / "04_unoriented.gif")
     )
 
-    # Step 5: stitch map
+    # Step 5: stitch map
     stitch_map(
         str(aligned) + "_orig",
-        str(run_folder / "05_map.png"),
-        str(run_folder / "05_steps"),
-        str(run_folder / "05_map.gif")
+        str(WORK_ROOT / "05_map.png"),
+        str(WORK_ROOT / "05_steps"),
+        str(WORK_ROOT / "05_map.gif")
     )
 
-    # Step 6: stitch filtered map
+    # Step 6: filtered stitch
     stitch_map_pix_thresh(
         str(aligned) + "_orig",
-        str(run_folder / "06_map_pt.png"),
-        str(run_folder / "06_map_pt_bw.png"),
-        str(run_folder / "06_steps_pt"),
-        str(run_folder / "06_map_pt.gif"),
-        str(run_folder / "06_centers.txt"),
+        str(WORK_ROOT / "06_map_pt.png"),
+        str(WORK_ROOT / "06_map_pt_bw.png"),
+        str(WORK_ROOT / "06_steps_pt"),
+        str(WORK_ROOT / "06_map_pt.gif"),
+        str(WORK_ROOT / "06_centers.txt"),
         pixel_threshold=150
     )
 
-    # Step 7: print boat path
+    # Step 7: print boat path
     print_path(
-        str(run_folder / "05_map.png"),
-        str(run_folder / "06_centers.txt"),
+        str(WORK_ROOT / "05_map.png"),
+        str(WORK_ROOT / "06_centers.txt"),
         str(angle_file),
-        str(run_folder / "07_map_path.png"),
-        str(run_folder / "07_map_path.gif")
+        str(WORK_ROOT / "07_map_path.png"),
+        str(WORK_ROOT / "07_map_path.gif")
     )
 
-    # Step 8: revert to polar + lidar + test_stitch2
-    reverted_polar = run_folder / "08_reverted_polar"
-    lidar_polar    = run_folder / "08_reverted_polar_lidarized"
-    lidar_cart     = run_folder / "08_lidar_cartesian"
-
+    # Step 8: revert + lidar + test_stitch2
     cartesian_to_polar(
         str(aligned) + "_orig",
-        str(reverted_polar),
-        str(lidar_polar),
-        str(lidar_cart)
+        str(WORK_ROOT / "08_reverted_polar"),
+        str(WORK_ROOT / "08_reverted_polar_lidarized"),
+        str(WORK_ROOT / "08_lidar_cartesian")
     )
-
-    out_png   = run_folder / "08_stitched_map_test.png"
-    out_bw    = run_folder / "08_stitched_map_test_bw.png"
-    out_steps = run_folder / "08_stitched_maps_steps_test"
-    centers8  = run_folder / "08_centers.txt"
-    gif8      = run_folder / "08_stitching_process_test.gif"
-
     test_stitch2(
         str(aligned) + "_orig",
-        str(lidar_cart) + "_mask",
-        str(out_png),
-        str(out_bw),
-        str(out_steps),
-        str(gif8),
-        str(centers8),
+        str(WORK_ROOT / "08_lidar_cartesian") + "_mask",
+        str(WORK_ROOT / "08_stitched_map_test.png"),
+        str(WORK_ROOT / "08_stitched_map_test_bw.png"),
+        str(WORK_ROOT / "08_stitched_maps_steps_test"),
+        str(WORK_ROOT / "08_stitching_process_test.gif"),
+        str(WORK_ROOT / "08_centers.txt"),
         pixel_threshold=150
     )
 
-    # Step 9: combine pose file
-    pose_out = run_folder / "09_pose_estimation.txt"
+    # Step 9: combine pose file
     combine_pose_file(
-        str(centers8),
+        str(WORK_ROOT / "08_centers.txt"),
         str(angle_file),
-        str(pose_out)
+        str(WORK_ROOT / "09_pose_estimation.txt")
     )
 
+
 def main():
-    ensure_root()
-    last_count = 0
+    ensure_dirs()
+    processed = load_processed()
 
     while True:
-        cart_images = list(CART_ROOT.glob("*.jpg"))
-        if len(cart_images) > last_count:
-            print(f"[slam] {len(cart_images)} images found (was {last_count}) → running new SLAM run")
+        # find all cartesian frames
+        all_cart = sorted(CART_ROOT.glob("*.jpg"))
+        all_names = {p.name for p in all_cart}
+        new_names = all_names - processed
+        if new_names:
+            # map names back to Paths
+            new_paths = [p for p in all_cart if p.name in new_names]
+            print(f"[slam] found {len(new_paths)} new frames, preprocessing…")
             try:
-                run_slam()
-                last_count = len(cart_images)
+                # 1–2: incrementally center & preprocess only new frames
+                incremental_preprocess(new_paths)
+                # mark them done
+                processed.update(new_names)
+                save_processed(processed)
+
+                # 3–9: run SLAM on full set (old + new)
+                print("[slam] running full SLAM pipeline on all frames…")
+                run_full_slam()
             except Exception as e:
-                print(f"  [ERROR] SLAM pipeline failed: {e}", file=sys.stderr)
+                print(f"  [ERROR] incremental SLAM failed: {e}", file=sys.stderr)
                 traceback.print_exc()
-                # advance so we only retry with freshly arriving images
-                last_count = len(cart_images)
         time.sleep(POLL_INTERVAL)
+
 
 if __name__ == "__main__":
     main()
