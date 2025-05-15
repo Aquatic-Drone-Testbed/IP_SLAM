@@ -4,7 +4,7 @@ import cv2
 import re
 from quantum_scan import QuantumScan
 
-ANG_VEL_THRESHOLD = 0.08    
+ANG_VEL_THRESHOLD = 0.06    
 MAX_BAD_SPOKE_RATIO = 0.005      
 ANG_VEL_AXIS = 'z'    
 AXIS_SELECT = {'x': 0, 'y': 1, 'z': 2}
@@ -23,7 +23,6 @@ def reconstruct_scan_single(file_path, output_folder, polar_output_folder, heatm
     current_scan = np.zeros((default_num_spokes, max_spoke_length), dtype=np.uint8)
     current_velocities = np.zeros(default_num_spokes, dtype=np.float32)
     received_azimuths = set()
-    previous_seq_num = None
     first_azimuth = None
 
     for line in lines:
@@ -45,47 +44,57 @@ def reconstruct_scan_single(file_path, output_folder, polar_output_folder, heatm
             current_velocities[azimuth_index] = ang_vel_value
             received_azimuths.add(azimuth_index)
 
-    filename_suffix = str(scan_id).zfill(5)
+    bad_spokes = np.sum(np.abs(current_velocities) > ANG_VEL_THRESHOLD)
+    bad_ratio = bad_spokes / default_num_spokes
 
-    polar_path = os.path.join(output_folder, f"polar_scan_{filename_suffix}.jpg")
-    cv2.imwrite(polar_path, (current_scan / np.max(current_scan) * 255).astype(np.uint8))
+    if bad_ratio <= MAX_BAD_SPOKE_RATIO:
+        print(f"Scan {scan_id}: PASS — bad ratio {bad_ratio:.2%}")
 
-    radar_image = cv2.warpPolar(
-        src=current_scan,
-        dsize=(2 * max_spoke_length, 2 * max_spoke_length),
-        center=(max_spoke_length, max_spoke_length),
-        maxRadius=max_spoke_length,
-        flags=cv2.WARP_INVERSE_MAP
-    )
-    radar_image = cv2.rotate(radar_image, cv2.ROTATE_90_CLOCKWISE)
+        filename_suffix = str(scan_id).zfill(5)
 
-    mask = np.zeros_like(radar_image, dtype=np.uint8)
-    cv2.circle(mask, (max_spoke_length, max_spoke_length), max_spoke_length - 10, (255, 255, 255), thickness=-1)
-    radar_image = cv2.bitwise_and(radar_image, radar_image, mask=mask)
+        polar_path = os.path.join(output_folder, f"polar_scan_{filename_suffix}.jpg")
+        cv2.imwrite(polar_path, (current_scan / np.max(current_scan) * 255).astype(np.uint8))
 
-    cartesian_path = os.path.join(polar_output_folder, f"cartesian_scan_{filename_suffix}.jpg")
-    cv2.imwrite(cartesian_path, radar_image)
+        radar_image = cv2.warpPolar(
+            src=current_scan,
+            dsize=(2 * max_spoke_length, 2 * max_spoke_length),
+            center=(max_spoke_length, max_spoke_length),
+            maxRadius=max_spoke_length,
+            flags=cv2.WARP_INVERSE_MAP
+        )
+        radar_image = cv2.rotate(radar_image, cv2.ROTATE_90_CLOCKWISE)
 
-    heatmap_color = np.zeros((default_num_spokes, max_spoke_length, 3), dtype=np.uint8)
-    norm_vel = np.clip((np.abs(current_velocities) / ANG_VEL_THRESHOLD) * 255, 0, 255).astype(np.uint8)
+        mask = np.zeros_like(radar_image, dtype=np.uint8)
+        cv2.circle(mask, (max_spoke_length, max_spoke_length), max_spoke_length - 10, (255, 255, 255), thickness=-1)
+        radar_image = cv2.bitwise_and(radar_image, radar_image, mask=mask)
 
-    for i in range(default_num_spokes):
-        if np.any(current_scan[i, :] > 0):
-            spoke_color = cv2.applyColorMap(np.full((1, 1), norm_vel[i], dtype=np.uint8), cv2.COLORMAP_JET)[0, 0]
-            non_zero_mask = current_scan[i, :] > 0
-            heatmap_color[i, non_zero_mask] = spoke_color
+        cartesian_path = os.path.join(polar_output_folder, f"cartesian_scan_{filename_suffix}.jpg")
+        cv2.imwrite(cartesian_path, radar_image)
 
-    heatmap_cartesian = cv2.warpPolar(
-        src=heatmap_color,
-        dsize=(2 * max_spoke_length, 2 * max_spoke_length),
-        center=(max_spoke_length, max_spoke_length),
-        maxRadius=max_spoke_length,
-        flags=cv2.WARP_INVERSE_MAP
-    )
-    heatmap_cartesian = cv2.rotate(heatmap_cartesian, cv2.ROTATE_90_CLOCKWISE)
-    heatmap_cartesian = cv2.bitwise_and(heatmap_cartesian, heatmap_cartesian, mask=mask)
+        heatmap_color = np.zeros((default_num_spokes, max_spoke_length, 3), dtype=np.uint8)
+        norm_vel = np.clip((np.abs(current_velocities) / ANG_VEL_THRESHOLD) * 255, 0, 255).astype(np.uint8)
 
-    heatmap_path = os.path.join(heatmap_output_folder, f"heatmap_scan_{filename_suffix}.jpg")
-    cv2.imwrite(heatmap_path, heatmap_cartesian)
+        for i in range(default_num_spokes):
+            if np.any(current_scan[i, :] > 0):
+                spoke_color = cv2.applyColorMap(np.full((1, 1), norm_vel[i], dtype=np.uint8), cv2.COLORMAP_JET)[0, 0]
+                non_zero_mask = current_scan[i, :] > 0
+                heatmap_color[i, non_zero_mask] = spoke_color
 
-    return polar_path, cartesian_path, heatmap_path
+        heatmap_cartesian = cv2.warpPolar(
+            src=heatmap_color,
+            dsize=(2 * max_spoke_length, 2 * max_spoke_length),
+            center=(max_spoke_length, max_spoke_length),
+            maxRadius=max_spoke_length,
+            flags=cv2.WARP_INVERSE_MAP
+        )
+        heatmap_cartesian = cv2.rotate(heatmap_cartesian, cv2.ROTATE_90_CLOCKWISE)
+        heatmap_cartesian = cv2.bitwise_and(heatmap_cartesian, heatmap_cartesian, mask=mask)
+
+        heatmap_path = os.path.join(heatmap_output_folder, f"heatmap_scan_{filename_suffix}.jpg")
+        cv2.imwrite(heatmap_path, heatmap_cartesian)
+
+        return polar_path, cartesian_path, heatmap_path
+
+    else:
+        print(f"Scan {scan_id}: FAIL — bad ratio {bad_ratio:.2%}, skipping image generation.")
+        return None, None, None

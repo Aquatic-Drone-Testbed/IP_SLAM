@@ -112,33 +112,33 @@ def run_full_slam():
         str(WORK_ROOT / "04_unoriented.gif")
     )
 
-    # Step 5: stitch map
-    stitch_map(
-        str(aligned) + "_orig",
-        str(WORK_ROOT / "05_map.png"),
-        str(WORK_ROOT / "05_steps"),
-        str(WORK_ROOT / "05_map.gif")
-    )
+    # # Step 5: stitch map
+    # stitch_map(
+    #     str(aligned) + "_orig",
+    #     str(WORK_ROOT / "05_map.png"),
+    #     str(WORK_ROOT / "05_steps"),
+    #     str(WORK_ROOT / "05_map.gif")
+    # )
 
-    # Step 6: filtered stitch
-    stitch_map_pix_thresh(
-        str(aligned) + "_orig",
-        str(WORK_ROOT / "06_map_pt.png"),
-        str(WORK_ROOT / "06_map_pt_bw.png"),
-        str(WORK_ROOT / "06_steps_pt"),
-        str(WORK_ROOT / "06_map_pt.gif"),
-        str(WORK_ROOT / "06_centers.txt"),
-        pixel_threshold=150
-    )
+    # # Step 6: filtered stitch
+    # stitch_map_pix_thresh(
+    #     str(aligned) + "_orig",
+    #     str(WORK_ROOT / "06_map_pt.png"),
+    #     str(WORK_ROOT / "06_map_pt_bw.png"),
+    #     str(WORK_ROOT / "06_steps_pt"),
+    #     str(WORK_ROOT / "06_map_pt.gif"),
+    #     str(WORK_ROOT / "06_centers.txt"),
+    #     pixel_threshold=150
+    # )
 
-    # Step 7: print boat path
-    print_path(
-        str(WORK_ROOT / "05_map.png"),
-        str(WORK_ROOT / "06_centers.txt"),
-        str(angle_file),
-        str(WORK_ROOT / "07_map_path.png"),
-        str(WORK_ROOT / "07_map_path.gif")
-    )
+    # # Step 7: print boat path
+    # print_path(
+    #     str(WORK_ROOT / "05_map.png"),
+    #     str(WORK_ROOT / "06_centers.txt"),
+    #     str(angle_file),
+    #     str(WORK_ROOT / "07_map_path.png"),
+    #     str(WORK_ROOT / "07_map_path.gif")
+    # )
 
     # Step 8: revert + lidar + test_stitch2
     cartesian_to_polar(
