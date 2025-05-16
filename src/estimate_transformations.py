@@ -24,7 +24,23 @@ def estimate_transformations(input_folder, output_transformations_file, match_ou
     curr_angle = 0
     angle_list = []
 
+
+    if os.path.exists(output_transformations_file):
+        transformations = list(np.load(output_transformations_file, allow_pickle=True))
+
+    if os.path.exists(angle_log_file):
+        with open(angle_log_file, "r") as f:
+            angle_list = [float(line.split()[1]) for line in f.readlines()]
+        if angle_list:
+            curr_angle = angle_list[-1]
+
+
     for i in range(len(images) - 1):
+        match_path = os.path.join(match_output_folder, f"match_{i:05d}.png")
+        # print(match_path)
+        if os.path.exists(match_path):
+            continue
+
         img1_path = os.path.join(input_folder, images[i])
         img2_path = os.path.join(input_folder, images[i + 1])
 
@@ -56,19 +72,19 @@ def estimate_transformations(input_folder, output_transformations_file, match_ou
         transformations.append(M)
 
         match_img = cv2.drawMatches(img1, kp1, img2, kp2, good_matches, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-        match_path = os.path.join(match_output_folder, f"match_{i:03d}.png")
+
         cv2.imwrite(match_path, match_img)
 
-        h, w = img1.shape
-        img2_transformed = cv2.warpAffine(img2, M, (w, h))
+        # h, w = img1.shape
+        # img2_transformed = cv2.warpAffine(img2, M, (w, h))
 
-        overlay = cv2.addWeighted(img1, 0.5, img2_transformed, 0.5, 0)
+        # overlay = cv2.addWeighted(img1, 0.5, img2_transformed, 0.5, 0)
 
-        overlay_path = os.path.join(overlay_output_folder, f"overlay_{i:03d}.png")
-        cv2.imwrite(overlay_path, overlay)
+        # overlay_path = os.path.join(overlay_output_folder, f"overlay_{i:05d}.png")
+        # cv2.imwrite(overlay_path, overlay)
 
     np.save(output_transformations_file, transformations)
 
     with open(angle_log_file, "w") as f:
         for i, angle in enumerate(angle_list):
-            f.write(f"{i:03d} {angle:.4f}\n")
+            f.write(f"{i:05d} {angle:.4f}\n")

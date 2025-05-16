@@ -21,6 +21,11 @@ def orient_scans(processed_folder, original_folder, aligned_folder, transformati
 
     for i in range(len(processed_images) - 1):
 
+        unoriented_path = os.path.join(aligned_folder + "_unoriented", f"unoriented_{i:05d}.png")
+        # print(unoriented_path)
+        if os.path.exists(unoriented_path):
+            continue
+
         processed_img_path = os.path.join(processed_folder, processed_images[i])
         original_img_path = os.path.join(original_folder, original_images[i])
 
@@ -28,13 +33,13 @@ def orient_scans(processed_folder, original_folder, aligned_folder, transformati
         original_img = cv2.imread(original_img_path, cv2.IMREAD_COLOR)
 
         # Save the unoriented image
-        unoriented_path = os.path.join(aligned_folder + "_unoriented", f"unoriented_{i:03d}.png")
+        unoriented_path = os.path.join(aligned_folder + "_unoriented", f"unoriented_{i:05d}.png")
         cv2.imwrite(unoriented_path, original_img)
         unoriented_images.append(Image.open(unoriented_path))
 
         if i == 0:
-            aligned_path_proc = os.path.join(aligned_folder + "_proc", f"aligned_proc_{i:03d}.png")
-            aligned_path_orig = os.path.join(aligned_folder + "_orig", f"aligned_orig_{i:03d}.png")
+            aligned_path_proc = os.path.join(aligned_folder + "_proc", f"aligned_proc_{i:05d}.png")
+            aligned_path_orig = os.path.join(aligned_folder + "_orig", f"aligned_orig_{i:05d}.png")
             cv2.imwrite(aligned_path_proc, processed_img)
             cv2.imwrite(aligned_path_orig, original_img)
 
@@ -54,41 +59,41 @@ def orient_scans(processed_folder, original_folder, aligned_folder, transformati
         aligned_proc_img = cv2.warpAffine(processed_img, R, (w, h))
         aligned_orig_img = cv2.warpAffine(original_img, R, (w, h))
 
-        aligned_path_proc = os.path.join(aligned_folder + "_proc", f"aligned_proc_{i:03d}.png")
-        aligned_path_orig = os.path.join(aligned_folder + "_orig", f"aligned_orig_{i:03d}.png")
+        aligned_path_proc = os.path.join(aligned_folder + "_proc", f"aligned_proc_{i:05d}.png")
+        aligned_path_orig = os.path.join(aligned_folder + "_orig", f"aligned_orig_{i:05d}.png")
         cv2.imwrite(aligned_path_proc, aligned_proc_img)
         cv2.imwrite(aligned_path_orig, aligned_orig_img)
 
         aligned_processed.append(Image.open(aligned_path_proc))
         aligned_original.append(Image.open(aligned_path_orig))
  
-    if aligned_processed:
-        aligned_processed[0].convert("RGB").save(
-            gif_processed_path,
-            save_all=True,
-            append_images=[img.convert("RGB") for img in aligned_processed[1:]],
-            duration=100,
-            loop=0,
-            transparency=None,
-            disposal=2
-        )
+    # if aligned_processed:
+    #     aligned_processed[0].convert("RGB").save(
+    #         gif_processed_path,
+    #         save_all=True,
+    #         append_images=[img.convert("RGB") for img in aligned_processed[1:]],
+    #         duration=100,
+    #         loop=0,
+    #         transparency=None,
+    #         disposal=2
+    #     )
 
-    if aligned_original:
-        aligned_original[0].convert("RGB").save(
-            gif_original_path,
-            save_all=True,
-            append_images=[img.convert("RGB") for img in aligned_original[1:]],
-            duration=100,
-            loop=0,
-            transparency=None,
-            disposal=2
-        )
+    # if aligned_original:
+    #     aligned_original[0].convert("RGB").save(
+    #         gif_original_path,
+    #         save_all=True,
+    #         append_images=[img.convert("RGB") for img in aligned_original[1:]],
+    #         duration=100,
+    #         loop=0,
+    #         transparency=None,
+    #         disposal=2
+    #     )
 
-    if unoriented_images:
-        unoriented_images[0].save(
-            gif_unoriented_path,
-            save_all=True,
-            append_images=unoriented_images[1:],
-            duration=100,
-            loop=0
-        )
+    # if unoriented_images:
+    #     unoriented_images[0].save(
+    #         gif_unoriented_path,
+    #         save_all=True,
+    #         append_images=unoriented_images[1:],
+    #         duration=100,
+    #         loop=0
+    #     )

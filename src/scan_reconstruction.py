@@ -12,6 +12,7 @@ MAX_BAD_SPOKE_RATIO = 0.005
 ANG_VEL_AXIS = 'z'    
 
 AXIS_SELECT = {'x': 0, 'y': 1, 'z': 2}
+new_frame_id = 1
 
 def reconstruct_scans(file_path, output_folder, polar_output_folder, heatmap_output_folder):
     default_num_spokes = 250

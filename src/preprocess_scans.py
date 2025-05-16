@@ -12,9 +12,15 @@ def preprocess_scans(input_folder, output_folder):
         return cv2.bilateralFilter(enhanced, 9, 75, 75)
 
     for filename in os.listdir(input_folder):
+        output_path = os.path.join(output_folder, filename)
+
+        if os.path.exists(output_path):
+            continue
+
         if filename.endswith(".png") or filename.endswith(".jpg"):
             image_path = os.path.join(input_folder, filename)
             image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+            
             processed_image = preprocess_radar_scan(image)
-            output_path = os.path.join(output_folder, filename)
+
             cv2.imwrite(output_path, processed_image)

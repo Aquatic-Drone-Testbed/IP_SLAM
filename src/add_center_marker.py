@@ -9,9 +9,18 @@ def add_center_marker(input_folder, output_folder, scale_factor=1.0):
 
     image_files = sorted([f for f in os.listdir(input_folder) if f.endswith((".png", ".jpg"))])
     total_images = len(image_files)
-    num_digits = len(str(total_images))  # Determine the number of digits for padding
+    num_digits = 5  # Determine the number of digits for padding
 
     for idx, filename in enumerate(image_files, start=1):
+
+        name, ext = os.path.splitext(filename)
+        new_filename = f"radar_center_{idx:0{num_digits}d}{ext}"
+        
+        output_path = os.path.join(output_folder, new_filename)
+
+        if os.path.exists(output_path):
+            continue
+
         img_path = os.path.join(input_folder, filename)
         img = cv2.imread(img_path)
         
@@ -24,9 +33,7 @@ def add_center_marker(input_folder, output_folder, scale_factor=1.0):
         cv2.circle(img, center, 1, (0, 0, 255), -1)
         
         # Generate new filename with leading zeros
-        name, ext = os.path.splitext(filename)
-        new_filename = f"radar_center_{idx:0{num_digits}d}{ext}"
-        
-        output_path = os.path.join(output_folder, new_filename)
+
+
         cv2.imwrite(output_path, img)
 
