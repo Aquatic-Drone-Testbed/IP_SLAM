@@ -31,8 +31,6 @@ def estimate_transformations(input_folder, output_transformations_file, match_ou
     if os.path.exists(angle_log_file):
         with open(angle_log_file, "r") as f:
             angle_list = [float(line.split()[1]) for line in f.readlines()]
-        if angle_list:
-            curr_angle = angle_list[-1]
 
 
     for i in range(len(images) - 1):

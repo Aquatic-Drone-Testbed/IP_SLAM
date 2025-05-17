@@ -3,7 +3,7 @@ import numpy as np
 import os
 from PIL import Image
 
-def orient_scans(processed_folder, original_folder, aligned_folder, transformations_file, gif_processed_path, gif_original_path, gif_unoriented_path):
+def orient_scans(processed_folder, original_folder, aligned_folder, transformations_file, gif_processed_path, gif_original_path, gif_unoriented_path, gif_output):
 
     os.makedirs(aligned_folder + "_proc", exist_ok=True)
     os.makedirs(aligned_folder + "_orig", exist_ok=True)
@@ -67,33 +67,35 @@ def orient_scans(processed_folder, original_folder, aligned_folder, transformati
         aligned_processed.append(Image.open(aligned_path_proc))
         aligned_original.append(Image.open(aligned_path_orig))
  
-    # if aligned_processed:
-    #     aligned_processed[0].convert("RGB").save(
-    #         gif_processed_path,
-    #         save_all=True,
-    #         append_images=[img.convert("RGB") for img in aligned_processed[1:]],
-    #         duration=100,
-    #         loop=0,
-    #         transparency=None,
-    #         disposal=2
-    #     )
 
-    # if aligned_original:
-    #     aligned_original[0].convert("RGB").save(
-    #         gif_original_path,
-    #         save_all=True,
-    #         append_images=[img.convert("RGB") for img in aligned_original[1:]],
-    #         duration=100,
-    #         loop=0,
-    #         transparency=None,
-    #         disposal=2
-    #     )
+    if(gif_output):
+        if aligned_processed:
+            aligned_processed[0].convert("RGB").save(
+                gif_processed_path,
+                save_all=True,
+                append_images=[img.convert("RGB") for img in aligned_processed[1:]],
+                duration=100,
+                loop=0,
+                transparency=None,
+                disposal=2
+            )
 
-    # if unoriented_images:
-    #     unoriented_images[0].save(
-    #         gif_unoriented_path,
-    #         save_all=True,
-    #         append_images=unoriented_images[1:],
-    #         duration=100,
-    #         loop=0
-    #     )
+        if aligned_original:
+            aligned_original[0].convert("RGB").save(
+                gif_original_path,
+                save_all=True,
+                append_images=[img.convert("RGB") for img in aligned_original[1:]],
+                duration=100,
+                loop=0,
+                transparency=None,
+                disposal=2
+            )
+
+        if unoriented_images:
+            unoriented_images[0].save(
+                gif_unoriented_path,
+                save_all=True,
+                append_images=unoriented_images[1:],
+                duration=100,
+                loop=0
+            )

@@ -5,7 +5,7 @@ import imageio
 from glob import glob
 
 def test_stitch2(
-    aligned_folder, mask_folder, output_map_path, output_frames, match_output_folder, gif_output_path, overlay_gif_output_path, center_log_path, canvas_size=(500, 500), min_inliers=20, pixel_threshold=100, visible_radius=60, prob_threshold=0.3,):
+    aligned_folder, mask_folder, output_map_path, output_frames, match_output_folder, gif_output_path, overlay_gif_output_path, center_log_path, canvas_size=(500, 500), min_inliers=20, pixel_threshold=100, visible_radius=60, prob_threshold=0.3, gif_output=False):
     os.makedirs(match_output_folder, exist_ok=True)
     os.makedirs(output_frames, exist_ok=True)
 
@@ -17,7 +17,9 @@ def test_stitch2(
     mask_paths = sorted(glob(os.path.join(mask_folder, "*.png")))
     scans = [cv2.imread(p, cv2.IMREAD_GRAYSCALE) for p in scan_paths]
     masks = [cv2.imread(p, cv2.IMREAD_GRAYSCALE) for p in mask_paths]
-    scan_h, scan_w = scans[0].shape
+
+    if scans:
+        scan_h, scan_w = scans[0].shape
 
     akaze = cv2.AKAZE_create()
     bf = cv2.BFMatcher(cv2.NORM_HAMMING)
@@ -25,9 +27,9 @@ def test_stitch2(
     poses = [np.eye(3)]
     gif_frames = []
     overlay_gif_frames = []
+    
     center_positions = []
 
-    # === Load or initialize cumulative tracking maps ===
     times_viewed_path = output_map_path.replace(".png", "_times_viewed.npy")
     times_counted_path = output_map_path.replace(".png", "_times_counted.npy")
     if os.path.exists(times_viewed_path) and os.path.exists(times_counted_path):
@@ -37,7 +39,6 @@ def test_stitch2(
         times_viewed = np.zeros((canvas_size[0], canvas_size[1]), dtype=np.uint16)
         times_counted = np.zeros((canvas_size[0], canvas_size[1]), dtype=np.uint16)
 
-    # === Feature matching and pose estimation ===
     for i in range(1, len(scans)):
         ref_scan = scans[i - 1]
         curr_scan = scans[i]
@@ -73,18 +74,17 @@ def test_stitch2(
         match_path = os.path.join(match_output_folder, f"match_{i:03d}.png")
         cv2.imwrite(match_path, match_img)
 
-    # === Frame rendering and probability map ===
     for i, (scan_gray, pose) in enumerate(zip(scans, poses)):
         output_path = os.path.join(output_frames, f"stitched_{i:05d}.png")
         overlay_path = os.path.join(output_frames, f"stitched_overlay_{i:05d}.png")
 
         if os.path.exists(output_path) and os.path.exists(overlay_path):
-            print(f"Skipping rendering for frame {i}, already exists.")
-            bw_frame = cv2.imread(output_path, cv2.IMREAD_GRAYSCALE)
-            gif_frames.append(bw_frame.copy())
+            if(gif_output):
+                bw_frame = cv2.imread(output_path, cv2.IMREAD_GRAYSCALE)
+                gif_frames.append(bw_frame.copy())
 
-            overlay_frame = cv2.imread(overlay_path)
-            overlay_gif_frames.append(overlay_frame.copy())
+                overlay_frame = cv2.imread(overlay_path)
+                overlay_gif_frames.append(overlay_frame.copy())
             continue
 
         frames_handled += 1
@@ -107,14 +107,14 @@ def test_stitch2(
 
         bw_frame = (255 - (probability_map * 255)).astype(np.uint8)
         bw_frame[times_viewed == 0] = 255
-        gif_frames.append(bw_frame.copy())
+        if gif_output: gif_frames.append(bw_frame.copy())
         cv2.imwrite(output_path, bw_frame)
 
         overlay_map = cv2.cvtColor(bw_frame, cv2.COLOR_GRAY2BGR)
         empty_region_mask = (times_viewed > 0) & (probability_map < 0.1)
         overlay_map[empty_region_mask] = [240, 220, 220]
         cv2.imwrite(overlay_path, overlay_map)
-        overlay_gif_frames.append(overlay_map.copy())
+        if gif_output: overlay_gif_frames.append(overlay_map.copy())
 
         center = np.array([[scan_w / 2, scan_h / 2]], dtype=np.float32)
         transformed_center = cv2.transform(np.array([center]), warp_matrix)[0][0]
@@ -130,10 +130,11 @@ def test_stitch2(
         overlay_map[empty_region_mask] = [240, 220, 220]
         cv2.imwrite(output_map_path.replace(".png", "_overlayed.png"), overlay_map)
 
-        imageio.mimsave(gif_output_path, gif_frames, fps=3, loop=0)
-        imageio.mimsave(overlay_gif_output_path, overlay_gif_frames, fps=3, loop=0)
+        if gif_output:
+            imageio.mimsave(gif_output_path, gif_frames, fps=3, loop=0)
+            imageio.mimsave(overlay_gif_output_path, overlay_gif_frames, fps=3, loop=0)
 
-        with open(center_log_path, "w") as f:
+        with open(center_log_path, "a") as f:
             for x, y in center_positions:
                 f.write(f"{x} {y}\n")
 

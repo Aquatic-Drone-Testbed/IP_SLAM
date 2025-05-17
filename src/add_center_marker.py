@@ -4,6 +4,8 @@ import numpy as np
 
 def add_center_marker(input_folder, output_folder, scale_factor=1.0):
     os.makedirs(output_folder, exist_ok=True)
+    os.makedirs(input_folder, exist_ok=True)
+
     default_num_spokes = 250
     max_spoke_length = 256
 

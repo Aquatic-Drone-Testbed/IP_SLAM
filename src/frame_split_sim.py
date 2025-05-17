@@ -41,4 +41,4 @@ def split_radar_frames(input_file, output_folder, save_delay=2.5):
             f_out.writelines(frame_lines)
 
 
-split_radar_frames("../test_data/slam_radar_test_3/radar_data.txt", "scans/raw_dumps", save_delay=0)
+split_radar_frames("../test_data/slam_radar_test_3/radar_data.txt", "scans/raw_dumps", save_delay=2.5)
