@@ -7,10 +7,11 @@ from pathlib import Path
 from reconstruct_scan_single import reconstruct_scan_single
 
 # ── CONFIG ─────────────────────────────────────────────────────────────────────
-RAW_DATA_DIR    = Path("scans/raw_dumps")        # incoming .txt scans
+#RAW_DATA_DIR    = Path("scans/raw_dumps")        # incoming .txt scans
+RAW_DATA_DIR    = Path("/home/seamate1/ControlStationFiles/Radar_Data/frames")  
 PROCESSED_DIR   = Path("scans/processed_dumps")  # move here after processing
 VALID_ROOT      = Path("scans/valid_frames")     # root for outputs
-POLL_INTERVAL   = 10  # seconds between checks
+POLL_INTERVAL   = 1  # seconds between checks
 file_id_start = 1
 # ────────────────────────────────────────────────────────────────────────────────
 

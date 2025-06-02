@@ -5,9 +5,12 @@ import re
 from quantum_scan import QuantumScan
 
 ANG_VEL_THRESHOLD = 0.08    
-MAX_BAD_SPOKE_RATIO = 0.005      
+#MAX_BAD_SPOKE_RATIO = 0.005   
+#ANG_VEL_THRESHOLD = 0.05
+MAX_BAD_SPOKE_RATIO = 0.05
 ANG_VEL_AXIS = 'z'    
 AXIS_SELECT = {'x': 0, 'y': 1, 'z': 2}
+NUM_SPOKE_THRESH = 250
 
 def reconstruct_scan_single(file_path, output_folder, polar_output_folder, heatmap_output_folder, scan_id):
     default_num_spokes = 250
@@ -24,10 +27,12 @@ def reconstruct_scan_single(file_path, output_folder, polar_output_folder, heatm
     current_velocities = np.zeros(default_num_spokes, dtype=np.float32)
     received_azimuths = set()
     first_azimuth = None
+    num_spokes = 0
 
     for line in lines:
         match = re.search(r"Q_Header<\((.*?)\)>\s+Q_Data<\((.*?)\)>\s+ORIENT<geometry_msgs\.msg\.Quaternion\(x=(.*?),\s*y=(.*?),\s*z=(.*?),\s*w=(.*?)\)>\s+ANG_VEL<geometry_msgs\.msg\.Vector3\(x=(.*?),\s*y=(.*?),\s*z=(.*?)\)>\s+LIN_ACC<geometry_msgs\.msg\.Vector3\(x=(.*?),\s*y=(.*?),\s*z=(.*?)\)>\s+COMP<(\d+)>\s+", line)
         if match:
+            num_spokes += 1
             header_values = tuple(map(int, match.group(1).split(", ")))
             data_values = tuple(map(int, match.group(2).split(", ")))
             ang_vel = tuple(map(float, (match.group(7), match.group(8), match.group(9))))
@@ -47,8 +52,8 @@ def reconstruct_scan_single(file_path, output_folder, polar_output_folder, heatm
     bad_spokes = np.sum(np.abs(current_velocities) > ANG_VEL_THRESHOLD)
     bad_ratio = bad_spokes / default_num_spokes
 
-    if bad_ratio <= MAX_BAD_SPOKE_RATIO:
-        print(f"Scan {scan_id}: PASS — bad ratio {bad_ratio:.2%}")
+    if bad_ratio <= MAX_BAD_SPOKE_RATIO and num_spokes >= NUM_SPOKE_THRESH:
+        #print(f"Scan {scan_id}: PASS — bad ratio {bad_ratio:.2%}")
 
         filename_suffix = str(scan_id).zfill(5)
 
@@ -96,5 +101,5 @@ def reconstruct_scan_single(file_path, output_folder, polar_output_folder, heatm
         return polar_path, cartesian_path, heatmap_path
 
     else:
-        print(f"Scan {scan_id}: FAIL — bad ratio {bad_ratio:.2%}, skipping image generation.")
+        print(f"Scan {scan_id}: FAIL — bad ratio {bad_ratio:.2%},  Spokes {num_spokes} skipping image generation.")
         return None, None, None

@@ -50,6 +50,11 @@ def orient_scans(processed_folder, original_folder, aligned_folder, transformati
         M = transformations[i - 1]
         angle = np.degrees(np.arctan2(M[0, 1], M[0, 0]))
 
+        # if M is None:
+        #     angle = 0.0
+        # else:
+        #     angle = np.degrees(np.arctan2(M[0, 1], M[0, 0]))
+
         reference_angle -= angle
 
         h, w = processed_img.shape

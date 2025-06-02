@@ -13,6 +13,7 @@ def combine_pose_file(position_file, angle_file, output_file, current_pose):
 
                     x, y = pos_parts
                     frame_ang, angle = ang_parts
+                    if(frame_ang == "n"): continue
 
                     position_str = f"({x},{y})"
                     latest_pose = f"{frame_number}\t{position_str}\t{angle}\n"

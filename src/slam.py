@@ -1,4 +1,7 @@
 import os
+
+#os.environ['LD_PRELOAD'] = '/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.33'
+
 import numpy as np
 import cv2
 import time
@@ -14,6 +17,25 @@ from combine_pose_file import combine_pose_file
 from test_stitch import test_stitch
 from test_stitch2 import test_stitch2
 from cartesian_to_polar import cartesian_to_polar
+
+import sys
+import GPUtil
+
+
+def check_vram_usage():
+    """Checks GPU memory usage and returns the available VRAM in MB."""
+    gpus = GPUtil.getGPUs()
+    if gpus:
+        gpu = gpus[0]  # Assuming single GPU, adjust if necessary
+        #print(gpu)
+        return gpu.memoryFree  # VRAM available in MB
+    return 0  # No GPU available
+
+def restart_script():
+    """Restarts the script if VRAM is low."""
+    print("VRAM is low. Restarting script...")
+    time.sleep(3)
+    os.execv(sys.executable, ['python'] + sys.argv)  # Restart the script
 
 
 # from stitch_map_de import stitch_map_de
@@ -52,13 +74,14 @@ while True:
 
     # Step 3: Estimate transformations
     feature_detector = "AKAZE"
-    num_good_matches = 100
+    num_good_matches = 4
     transformations_file = "scans/3_estimated_transformations.npy"
     match_output_folder = "scans/3_feature_matches"
     overlay_output_folder = "scans/3_overlay_debug"
     angle_file = "scans/3_frame_angles.txt"
     print(f"\t3...Feature Matching/Estimation...")
     estimate_transformations(processed_folder, transformations_file, match_output_folder, overlay_output_folder, angle_file, feature_detector, num_good_matches)
+    #estimate_transformations(processed_folder, transformations_file, match_output_folder, overlay_output_folder, angle_file, num_good_matches)
 
     # Step 4: Orient scans and create GIFs
     aligned_folder = "scans/4_aligned_scans"
@@ -98,7 +121,9 @@ while True:
 
 
 
-    output_map_path = "scans/6_stitched_map_test.png"
+    # output_map_path = "scans/6_stitched_map_test.png"
+    output_map_path = "/home/seamate1/ControlStationFiles/NAV2_USV/map/curr_stitched_map.png"
+
     output_map_path_frames = "scans/6_stitched_map_frames"
     map_parts_output = "scans/6_stitched_maps_steps_test"
     center_file = "scans/6_centers.txt"
@@ -111,7 +136,9 @@ while True:
 
     # Step 7: Combine Pose File
     pose_estimation = "scans/7_pose_estimation.txt"
-    curr_pose = "scans/7_current_pose_estimation.txt"
+    # curr_pose = "scans/7_current_pose_estimation.txt"
+
+    curr_pose = "/home/seamate1/ControlStationFiles/NAV2_USV/map/current_pose_estimation.txt"
 
     print(f"\t7...Generate Pose File...")
     combine_pose_file(center_file, angle_file, pose_estimation, curr_pose)
@@ -120,8 +147,8 @@ while True:
     # Step 8: Print Boat Path
     output_map_and_boat_path = "scans/8_stitched_map_boat_path.png"
     output_map_and_boat_gif_path = "scans/8_stitched_map_boat_path.gif"
-    print(f"\t8...Display Boat Path...")
-    print_path(output_map_path, center_file, angle_file, output_map_and_boat_path, output_map_and_boat_gif_path, gif_output=gif_output)
+    # print(f"\t8...Display Boat Path...")
+    # print_path(output_map_path, center_file, angle_file, output_map_and_boat_path, output_map_and_boat_gif_path, gif_output=gif_output)
 
 
     # output_map_path = "scans/5_stitched_map_de.png"
@@ -129,6 +156,10 @@ while True:
     # gif_map_path = "scans/5_stitching_process_de.gif"
     # stitch_map_pix_thresh(aligne  d_folder + "_orig", output_map_path, map_parts_output, gif_map_path, 255)
 
-    time.sleep(2.5)
+    time.sleep(1) #2.5
+
+    vram_available = check_vram_usage()
+    if vram_available < 1200:  # Adjust threshold if needed
+        restart_script()
 
 

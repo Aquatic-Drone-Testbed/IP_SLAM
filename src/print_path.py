@@ -12,7 +12,7 @@ def print_path(map_image_path, center_txt_path, angles_txt_path, output_path_img
 
         with open(center_txt_path, "r") as f_centers, open(angles_txt_path, "r") as f_angles:
             centers = [tuple(map(int, line.strip().split())) for line in f_centers]
-            angles = [float(line.strip().split()[1]) for line in f_angles]  
+            angles = [(line.strip().split()[1]) for line in f_angles]  
 
         gif_frames = []
 
@@ -20,8 +20,8 @@ def print_path(map_image_path, center_txt_path, angles_txt_path, output_path_img
             image = Image.open(map_image_path)
             draw = ImageDraw.Draw(image)
 
-
-            angle_rad = math.radians(angle_deg + 90)
+            if(angle_deg == "n"): continue
+            angle_rad = math.radians(float(angle_deg) + 90)
             x_end = int(x + line_length * math.cos(angle_rad))
             y_end = int(y + line_length * math.sin(angle_rad))
             draw.line((x, y, x_end, y_end), fill="green", width=1)
